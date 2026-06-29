@@ -58,6 +58,9 @@ function Index() {
   const [medHistoryParentTab, setMedHistoryParentTab] = useState<"details" | "history" | "audit">("history");
   const [medHistoryCategoryTab, setMedHistoryCategoryTab] = useState<"conditions" | "medications" | "labs" | "vitals">("conditions");
 
+  const [chatPrefillText, setChatPrefillText] = useState<string | null>(null);
+  const [chatAttachRecord, setChatAttachRecord] = useState<FhirRecord | null>(null);
+
   const chatRef = useRef<ChatPanelHandle>(null);
 
   // React Query: Fetch Patients
@@ -101,12 +104,13 @@ function Index() {
   };
 
   const handleAsk = (r: FhirRecord) => {
-    chatRef.current?.attachRecord(r);
+    setChatAttachRecord(r);
+    setChatPrefillText(`Can you explain my ${r.title}?`);
     setChatOpen(true);
   };
 
   const handleSuggestion = (q: string) => {
-    chatRef.current?.prefill(q);
+    setChatPrefillText(q);
     setChatOpen(true);
   };
 
@@ -503,6 +507,10 @@ function Index() {
               records={records} 
               onSourceClick={handleSourceClick} 
               onClose={() => setChatOpen(false)}
+              pendingQuestion={chatPrefillText}
+              pendingRecord={chatAttachRecord}
+              onClearPendingQuestion={() => setChatPrefillText(null)}
+              onClearPendingRecord={() => setChatAttachRecord(null)}
             />
           </div>
         )}
@@ -540,6 +548,10 @@ function Index() {
                 handleSourceClick(id);
                 setChatOpen(false);
               }}
+              pendingQuestion={chatPrefillText}
+              pendingRecord={chatAttachRecord}
+              onClearPendingQuestion={() => setChatPrefillText(null)}
+              onClearPendingRecord={() => setChatAttachRecord(null)}
             />
           </div>
         </div>

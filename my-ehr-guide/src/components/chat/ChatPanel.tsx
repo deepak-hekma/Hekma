@@ -20,6 +20,10 @@ interface Props {
   records: FhirRecord[];
   onSourceClick: (recordId: string) => void;
   onClose?: () => void;
+  pendingQuestion?: string | null;
+  pendingRecord?: FhirRecord | null;
+  onClearPendingQuestion?: () => void;
+  onClearPendingRecord?: () => void;
 }
 
 const newId = () =>
@@ -28,7 +32,16 @@ const newId = () =>
     : `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
-  { patientId, records, onSourceClick, onClose },
+  { 
+    patientId, 
+    records, 
+    onSourceClick, 
+    onClose,
+    pendingQuestion,
+    pendingRecord,
+    onClearPendingQuestion,
+    onClearPendingRecord
+  },
   ref,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -40,6 +53,23 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const hydrated = useRef(false);
+
+  // Handle external pending record attachment
+  useEffect(() => {
+    if (pendingRecord) {
+      setContextRecordId(pendingRecord.id);
+      onClearPendingRecord?.();
+    }
+  }, [pendingRecord, onClearPendingRecord]);
+
+  // Handle external pending question auto-submission
+  useEffect(() => {
+    if (pendingQuestion) {
+      setInput(pendingQuestion);
+      submit(pendingQuestion);
+      onClearPendingQuestion?.();
+    }
+  }, [pendingQuestion, onClearPendingQuestion]);
 
   // Hydrate from localStorage once.
   useEffect(() => {
@@ -85,6 +115,48 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  const chatWelcomeSuggestions = useMemo(() => {
+    const list: string[] = [];
+
+    // 1. First question is always summary
+    list.push("Summarize my health records");
+
+    // 2. Find a lab observation
+    const labsList = records.filter(
+      (r) =>
+        r.resourceType === "Observation" &&
+        !r.title.toLowerCase().includes("blood pressure") &&
+        !r.title.toLowerCase().includes("heart rate") &&
+        !r.title.toLowerCase().includes("temperature") &&
+        !r.title.toLowerCase().includes("height") &&
+        !r.title.toLowerCase().includes("weight") &&
+        !r.title.toLowerCase().includes("body mass index")
+    );
+    if (labsList.length > 0) {
+      const obsName = labsList[0].title.toLowerCase();
+      list.push(`Explain my last ${obsName} test`);
+    } else {
+      list.push("What was my last lab result?");
+    }
+
+    // 3. Find a medication
+    const meds = records.filter(
+      (r) =>
+        r.resourceType === "MedicationStatement" ||
+        r.resourceType === "MedicationRequest"
+    );
+    if (meds.length > 0) {
+      const medName = meds[0].title
+        .split(" ")[0]
+        .replace(/[,;]/g, "");
+      list.push(`Are there side effects of ${medName}?`);
+    } else {
+      list.push("Explain my medications");
+    }
+
+    return list.slice(0, 3);
+  }, [records]);
 
   const getRecordById = (id: string) => records.find((r) => r.id === id);
 
@@ -232,16 +304,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
               record I'm reading from.
             </div>
             <div className="space-y-1.5">
-              {[
-                "What was my last lab result?",
-                "Explain my medications",
-                "Summarize my health",
-              ].map((s) => (
+              {chatWelcomeSuggestions.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => submit(s)}
-                  className="block w-full rounded-xl border border-border bg-card px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-sage-soft"
+                  className="block w-full rounded-xl border border-border bg-card px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-sage-soft cursor-pointer"
                 >
                   {s}
                 </button>

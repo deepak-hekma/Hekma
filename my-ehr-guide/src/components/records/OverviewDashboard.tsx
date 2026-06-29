@@ -90,6 +90,59 @@ export function OverviewDashboard({
     };
   }, [records]);
 
+  const suggestions = useMemo(() => {
+    const list: string[] = [];
+
+    // 1. Find conditions
+    const activeConditions = records.filter((r) => r.resourceType === "Condition" && r.status === "active");
+    const anyConditions = activeConditions.length > 0 ? activeConditions : records.filter((r) => r.resourceType === "Condition");
+    if (anyConditions.length > 0) {
+      const condName = anyConditions[0].title
+        .replace(/\s*\([^)]*\)/g, "")
+        .trim();
+      list.push(`What is ${condName}?`);
+      list.push(`How is my ${condName} managed?`);
+    }
+
+    // 2. Find medications
+    const meds = records.filter(
+      (r) =>
+        r.resourceType === "MedicationStatement" ||
+        r.resourceType === "MedicationRequest",
+    );
+    if (meds.length > 0) {
+      const medName = meds[0].title
+        .split(" ")[0]
+        .replace(/[,;]/g, "");
+      list.push(`Why am I prescribed ${medName}?`);
+    }
+
+    // 3. Find recent lab observations
+    const labsList = records.filter((r) => r.resourceType === "Observation" && !isVitalTitle(r.title));
+    if (labsList.length > 0) {
+      const obsName = labsList[0].title.toLowerCase();
+      list.push(`What does my last ${obsName} result mean?`);
+    }
+
+    // 4. Find allergies
+    const allergiesList = records.filter((r) => r.resourceType === "AllergyIntolerance");
+    if (allergiesList.length > 0) {
+      const allergyName = allergiesList[0].title.toLowerCase();
+      list.push(`Do I have any allergies to ${allergyName}?`);
+    }
+
+    // Fallbacks
+    const fallbacks = [
+      "What diagnoses are on my profile?",
+      "Explain my latest lab reports",
+      "What medications am I taking?",
+      "Do I have any allergies noted?",
+    ];
+
+    const merged = Array.from(new Set([...list, ...fallbacks]));
+    return merged.slice(0, 4);
+  }, [records]);
+
   // Helper paginator
   const paginate = (items: any[], currentPage: number) => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -470,12 +523,7 @@ export function OverviewDashboard({
       <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Try asking</h3>
         <div className="flex flex-wrap gap-2">
-          {[
-            "What diagnoses are on my profile?",
-            "Explain my latest lab reports",
-            "What medications am I taking?",
-            "Do I have any allergies noted?"
-          ].map((s, idx) => (
+          {suggestions.map((s, idx) => (
             <Button
               key={idx}
               variant="outline"
