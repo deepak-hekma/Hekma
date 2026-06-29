@@ -4,10 +4,12 @@
 export type FhirCategory =
   | "Observation"
   | "MedicationStatement"
+  | "MedicationRequest"
   | "Condition"
   | "Encounter"
   | "Immunization"
-  | "AllergyIntolerance";
+  | "AllergyIntolerance"
+  | "Procedure";
 
 export interface FhirRecord {
   id: string;
@@ -309,10 +311,12 @@ export const categoryMeta: Record<
 > = {
   Observation: { label: "Labs & vitals", description: "Test results and measurements", order: 1 },
   MedicationStatement: { label: "Medications", description: "What you're currently taking", order: 2 },
+  MedicationRequest: { label: "Medication Requests", description: "Prescription requests", order: 2 },
   Condition: { label: "Conditions", description: "Active and past diagnoses", order: 3 },
   Encounter: { label: "Visits", description: "Appointments and encounters", order: 4 },
   Immunization: { label: "Immunizations", description: "Vaccines on record", order: 5 },
   AllergyIntolerance: { label: "Allergies", description: "Known sensitivities", order: 6 },
+  Procedure: { label: "Procedures", description: "Procedures on record", order: 7 },
 };
 
 export function getRecordById(id: string): FhirRecord | undefined {

@@ -18,10 +18,12 @@ import { cn } from "@/lib/utils";
 const ICONS: Record<FhirCategory, React.ComponentType<{ className?: string }>> = {
   Observation: Activity,
   MedicationStatement: Pill,
+  MedicationRequest: Pill,
   Condition: Stethoscope,
   Encounter: CalendarDays,
   Immunization: Syringe,
   AllergyIntolerance: AlertTriangle,
+  Procedure: CalendarDays,
 };
 
 const STATUS_DOT: Record<string, string> = {
