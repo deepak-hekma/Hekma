@@ -1,0 +1,23 @@
+# Dependency directories
+node_modules/
+dist/
+.output/
+.nitro/
+
+# Python caching & environments
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Environment files and credentials
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# System files
+.DS_Store
+Thumbs.db
