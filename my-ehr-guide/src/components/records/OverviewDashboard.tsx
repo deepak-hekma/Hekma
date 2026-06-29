@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { categoryMeta, type FhirCategory, type FhirRecord } from "@/lib/mockFhir";
 import { Button } from "@/components/ui/button";
 
@@ -15,16 +15,61 @@ const computeGreeting = () => {
   return "Good evening";
 };
 
-const SUGGESTIONS = [
-  "What was my last lab result?",
-  "Explain my medications",
-  "When was my last visit?",
-  "Do I have any allergies on file?",
-];
-
 export function OverviewDashboard({ patient, records, onSuggestion }: Props) {
   const [greeting, setGreeting] = useState("Hello");
   useEffect(() => setGreeting(computeGreeting()), []);
+
+  const suggestions = useMemo(() => {
+    const list: string[] = [];
+
+    // 1. Find conditions
+    const conditions = records.filter((r) => r.resourceType === "Condition");
+    if (conditions.length > 0) {
+      const condName = conditions[0].title
+        .replace(/\s*\([^)]*\)/g, "")
+        .trim();
+      list.push(`What is ${condName}?`);
+      list.push(`How is my ${condName} managed?`);
+    }
+
+    // 2. Find medications
+    const meds = records.filter(
+      (r) =>
+        r.resourceType === "MedicationStatement" ||
+        r.resourceType === "MedicationRequest",
+    );
+    if (meds.length > 0) {
+      const medName = meds[0].title
+        .split(" ")[0]
+        .replace(/[,;]/g, "");
+      list.push(`Why am I prescribed ${medName}?`);
+    }
+
+    // 3. Find recent lab observations
+    const observations = records.filter((r) => r.resourceType === "Observation");
+    if (observations.length > 0) {
+      const obsName = observations[0].title.toLowerCase();
+      list.push(`What does my last ${obsName} result mean?`);
+    }
+
+    // 4. Find allergies
+    const allergies = records.filter((r) => r.resourceType === "AllergyIntolerance");
+    if (allergies.length > 0) {
+      const allergyName = allergies[0].title.toLowerCase();
+      list.push(`Do I have any allergies to ${allergyName}?`);
+    }
+
+    // Fallbacks
+    const fallbacks = [
+      "What was my last lab result?",
+      "Explain my medications",
+      "When was my last visit?",
+      "Do I have any allergies on file?",
+    ];
+
+    const merged = Array.from(new Set([...list, ...fallbacks]));
+    return merged.slice(0, 4);
+  }, [records]);
 
   const counts = (Object.keys(categoryMeta) as FhirCategory[]).map((cat) => ({
     cat,
@@ -88,7 +133,7 @@ export function OverviewDashboard({ patient, records, onSuggestion }: Props) {
           Try asking
         </h2>
         <div className="flex flex-wrap gap-2">
-          {SUGGESTIONS.map((s) => (
+          {suggestions.map((s) => (
             <Button
               key={s}
               variant="outline"
