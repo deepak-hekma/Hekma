@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState, useEffect } from "react";
 import { 
   MessageCircle, X, LayoutDashboard, FolderHeart, 
-  FlaskConical, BookOpen, User, History, ArrowLeft 
+  FlaskConical, BookOpen, User, History, ArrowLeft, ChevronDown
 } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { RecordsSidebar } from "@/components/records/RecordsSidebar";
@@ -60,6 +60,7 @@ function Index() {
 
   const [chatPrefillText, setChatPrefillText] = useState<string | null>(null);
   const [chatAttachRecord, setChatAttachRecord] = useState<FhirRecord | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const chatRef = useRef<ChatPanelHandle>(null);
 
@@ -237,37 +238,68 @@ function Index() {
             </button>
           </div>
 
-          {/* Active Patient Selector (Bottom of Nav, above categories) */}
-          <div className="border-b border-border p-3 bg-muted/20">
-            <label className="block text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-              Active Patient
-            </label>
-            <select
-              value={selectedPatientId ?? ""}
-              onChange={(e) => {
-                const p = patients.find((p) => p.id === e.target.value);
-                if (p) handleSelectPatient(p);
-              }}
-              className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-medium text-ink focus:border-sage focus:outline-none cursor-pointer"
-            >
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Records Categories Sidebar (rendered ONLY under Medical History View) */}
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {activeView === "medicalhistory" ? (
+            {activeView === "medicalhistory" && (
               <RecordsSidebar
                 records={records}
                 selectedId={selectedId}
                 onSelect={(r) => setSelectedId(r.id)}
               />
-            ) : (
-              <div className="p-4 text-center text-xs text-muted-foreground py-10 space-y-2">
+            )}
+          </div>
+
+          {/* Active Patient Selector (aligned down but not at absolute bottom) */}
+          <div className="border-t border-border p-3 bg-muted/20 pb-8 space-y-3 relative">
+            <div className="relative">
+              <label className="block text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Active Patient
+              </label>
+              
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="w-full flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-ink hover:bg-muted/5 transition-colors focus:border-sage focus:outline-none cursor-pointer"
+              >
+                <span className="truncate">{selectedPatient?.name || "Select patient"}</span>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Custom Dropdown List */}
+              {dropdownOpen && (
+                <>
+                  {/* Backdrop to close */}
+                  <div 
+                    className="fixed inset-0 z-40 cursor-default" 
+                    onClick={() => setDropdownOpen(false)} 
+                  />
+                  
+                  <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-[350px] overflow-y-auto rounded-lg border border-border bg-background shadow-xl animate-fade-in-up">
+                    <ul className="py-1 text-xs text-ink divide-y divide-border/20">
+                      {patients.map((p) => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectPatient(p);
+                              setDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 hover:bg-sage-soft transition-colors cursor-pointer ${
+                              p.id === selectedPatientId ? "bg-sage/10 text-sage font-semibold" : ""
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {activeView !== "medicalhistory" && (
+              <div className="text-center text-xs text-muted-foreground pt-3 border-t border-border/40 space-y-1">
                 <p>Welcome to Hekma dashboard.</p>
                 <p className="text-[10px] text-muted-foreground/80">Select "Medical History" to review individual medical record data sheets.</p>
               </div>
