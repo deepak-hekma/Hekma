@@ -239,11 +239,24 @@ def chat():
                 )
                 other_records = [row["record"] for row in c_result]
 
-                # Query 4: Get other recent records like encounters/procedures (up to 4)
+                # Query 4: Get recent immunizations (up to 8)
+                i_result = session.run(
+                    """
+                    MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
+                    WHERE r.resourceType = 'Immunization'
+                    RETURN r {.*} as record
+                    ORDER BY r.date DESC
+                    LIMIT 8
+                    """,
+                    {"patient_id": patient_id}
+                )
+                immunization_records = [row["record"] for row in i_result]
+
+                # Query 5: Get other recent records like encounters/procedures (up to 4)
                 e_result = session.run(
                     """
                     MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
-                    WHERE NOT r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest', 'AllergyIntolerance']
+                    WHERE NOT r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest', 'AllergyIntolerance', 'Immunization']
                       AND NOT (r.resourceType = 'Observation' AND (
                         toLower(r.title) CONTAINS 'blood pressure' OR 
                         toLower(r.title) CONTAINS 'heart rate' OR 
@@ -260,7 +273,7 @@ def chat():
                 recent_records = [row["record"] for row in e_result]
 
                 # Combine all retrieved records
-                combined_records = vitals_records + allergy_records + other_records + recent_records
+                combined_records = vitals_records + allergy_records + immunization_records + other_records + recent_records
                 
                 serialized_items = []
                 for r in combined_records:
