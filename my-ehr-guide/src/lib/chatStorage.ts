@@ -1,11 +1,15 @@
 import type { ChatMessage } from "./chatbot";
 
-const KEY = "hekma.chat.v1";
+const getStorageKey = (patientId?: string) => {
+  const safeId = patientId ? patientId.replace(/[^a-zA-Z0-9-_]/g, "") : "general";
+  return `hekma.chat.${safeId}.v1`;
+};
 
-export function loadChat(): ChatMessage[] {
+export function loadChat(patientId?: string): ChatMessage[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const key = getStorageKey(patientId);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -15,16 +19,18 @@ export function loadChat(): ChatMessage[] {
   }
 }
 
-export function saveChat(messages: ChatMessage[]) {
+export function saveChat(messages: ChatMessage[], patientId?: string) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(messages));
+    const key = getStorageKey(patientId);
+    window.localStorage.setItem(key, JSON.stringify(messages));
   } catch {
     /* ignore quota */
   }
 }
 
-export function clearChat() {
+export function clearChat(patientId?: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(KEY);
+  const key = getStorageKey(patientId);
+  window.localStorage.removeItem(key);
 }

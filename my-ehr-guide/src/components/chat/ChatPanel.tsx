@@ -71,19 +71,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
     }
   }, [pendingQuestion, onClearPendingQuestion]);
 
-  // Hydrate from localStorage once.
+  // Load patient-specific chat (handles both initial hydration and patient changes)
   useEffect(() => {
-    if (hydrated.current) return;
-    hydrated.current = true;
-    setMessages(loadChat());
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  }, []);
-
-  // Persist.
-  useEffect(() => {
-    if (!hydrated.current) return;
-    saveChat(messages);
-  }, [messages]);
+    setMessages(loadChat(patientId));
+    if (!hydrated.current) {
+      hydrated.current = true;
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+  }, [patientId]);
 
   // Autoscroll.
   useEffect(() => {
@@ -116,46 +111,77 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const chatWelcomeSuggestions = useMemo(() => {
-    const list: string[] = [];
+  interface ChatSuggestion {
+    text: string;
+    recordId: string | null;
+  }
 
-    // 1. First question is always summary
-    list.push("Summarize my health records");
+  const chatWelcomeSuggestions = useMemo<ChatSuggestion[]>(() => {
+    const list: ChatSuggestion[] = [];
 
-    // 2. Find a lab observation
-    const labsList = records.filter(
-      (r) =>
-        r.resourceType === "Observation" &&
-        !r.title.toLowerCase().includes("blood pressure") &&
-        !r.title.toLowerCase().includes("heart rate") &&
-        !r.title.toLowerCase().includes("temperature") &&
-        !r.title.toLowerCase().includes("height") &&
-        !r.title.toLowerCase().includes("weight") &&
-        !r.title.toLowerCase().includes("body mass index")
-    );
-    if (labsList.length > 0) {
-      const obsName = labsList[0].title.toLowerCase();
-      list.push(`Explain my last ${obsName} test`);
-    } else {
-      list.push("What was my last lab result?");
+    const isVitalTitle = (title: string) => {
+      const t = title.toLowerCase();
+      return t.includes("blood pressure") || t.includes("heart rate") || 
+             t.includes("temperature") || t.includes("respiratory rate") || 
+             t.includes("weight") || t.includes("height") || 
+             t.includes("body mass index") || t.includes("steps");
+    };
+
+    const isExcludedObservation = (title: string) => {
+      const t = title.toLowerCase();
+      return t.includes("cause of death") || t.includes("death certificate") || t.includes("certification of death");
+    };
+
+    // Always start with general summary
+    list.push({ text: "Summarize my health records", recordId: null });
+
+    // 1. Find conditions
+    const activeConditions = records.filter((r) => r.resourceType === "Condition" && r.status === "active");
+    const anyConditions = activeConditions.length > 0 ? activeConditions : records.filter((r) => r.resourceType === "Condition");
+    if (anyConditions.length > 0) {
+      const condRecord = anyConditions[0];
+      const condName = condRecord.title.replace(/\s*\([^)]*\)/g, "").trim();
+      list.push({ text: `What is ${condName}?`, recordId: condRecord.id });
     }
 
-    // 3. Find a medication
+    // 2. Find medications
     const meds = records.filter(
-      (r) =>
-        r.resourceType === "MedicationStatement" ||
-        r.resourceType === "MedicationRequest"
+      (r) => r.resourceType === "MedicationStatement" || r.resourceType === "MedicationRequest"
     );
     if (meds.length > 0) {
-      const medName = meds[0].title
-        .split(" ")[0]
-        .replace(/[,;]/g, "");
-      list.push(`Are there side effects of ${medName}?`);
-    } else {
-      list.push("Explain my medications");
+      const medRecord = meds[0];
+      const medName = medRecord.title.split(" ")[0].replace(/[,;]/g, "");
+      list.push({ text: `Are there side effects of ${medName}?`, recordId: medRecord.id });
     }
 
-    return list.slice(0, 3);
+    // 3. Find recent lab observations (excluding vitals and death records)
+    const labsList = records.filter(
+      (r) => r.resourceType === "Observation" && !isVitalTitle(r.title) && !isExcludedObservation(r.title)
+    );
+    if (labsList.length > 0) {
+      const labRecord = labsList[0];
+      const obsName = labRecord.title.toLowerCase();
+      list.push({ text: `Explain my last ${obsName} test`, recordId: labRecord.id });
+    }
+
+    // Fallbacks
+    const fallbacks: ChatSuggestion[] = [
+      { text: "What diagnoses are on my profile?", recordId: null },
+      { text: "Explain my latest lab reports", recordId: null },
+      { text: "What medications am I taking?", recordId: null },
+    ];
+
+    // Deduplicate items by text
+    const seen = new Set<string>();
+    const merged: ChatSuggestion[] = [];
+    for (const item of [...list, ...fallbacks]) {
+      if (!seen.has(item.text)) {
+        seen.add(item.text);
+        merged.push(item);
+      }
+    }
+
+    return merged.slice(0, 3); // Keep top 3 suggestions for layout consistency
   }, [records]);
 
   const getRecordById = (id: string) => records.find((r) => r.id === id);
@@ -165,11 +191,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
     [contextRecordId, records],
   );
 
-  const submit = async (text: string) => {
+  const submit = async (text: string, forceRecordId?: string | null) => {
     const t = text.trim();
     if (!t || pending) return;
 
-    const ctx = contextRecordId;
+    const ctx = forceRecordId !== undefined ? forceRecordId : contextRecordId;
     const userMsg: ChatMessage = {
       id: newId(),
       role: "user",
@@ -178,7 +204,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
       sourceIds: ctx ? [ctx] : undefined,
     };
     const priorHistory = messages.map((m) => ({ role: m.role, content: m.content }));
-    setMessages((m) => [...m, userMsg]);
+    
+    // Explicitly update and save the user message immediately
+    const updatedWithUser = [...messages, userMsg];
+    setMessages(updatedWithUser);
+    saveChat(updatedWithUser, patientId);
+
     setInput("");
     setContextRecordId(null);
     setPending(true);
@@ -198,30 +229,38 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
         setStreamingText(buf);
       },
       (final) => {
-        setMessages((m) => [
-          ...m,
-          {
-            id: newId(),
-            role: "assistant",
-            content: final.content,
-            sourceIds: final.sourceIds,
-            createdAt: Date.now(),
-          },
-        ]);
+        setMessages((m) => {
+          const updated = [
+            ...m,
+            {
+              id: newId(),
+              role: "assistant",
+              content: final.content,
+              sourceIds: final.sourceIds,
+              createdAt: Date.now(),
+            },
+          ];
+          saveChat(updated, patientId);
+          return updated;
+        });
         setStreamingText("");
         setPending(false);
         requestAnimationFrame(() => textareaRef.current?.focus());
       },
       (err: Error) => {
-        setMessages((m) => [
-          ...m,
-          {
-            id: newId(),
-            role: "assistant",
-            content: `Sorry — I couldn't reach my reasoning service. ${err.message}`,
-            createdAt: Date.now(),
-          },
-        ]);
+        setMessages((m) => {
+          const updated = [
+            ...m,
+            {
+              id: newId(),
+              role: "assistant",
+              content: `Sorry — I couldn't reach my reasoning service. ${err.message}`,
+              createdAt: Date.now(),
+            },
+          ];
+          saveChat(updated, patientId);
+          return updated;
+        });
         setStreamingText("");
         setPending(false);
       },
@@ -246,7 +285,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
     setStreamingText("");
     setPending(false);
     setContextRecordId(null);
-    clearChat();
+    clearChat(patientId);
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -306,12 +345,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
             <div className="space-y-1.5">
               {chatWelcomeSuggestions.map((s) => (
                 <button
-                  key={s}
+                  key={s.text}
                   type="button"
-                  onClick={() => submit(s)}
+                  onClick={() => submit(s.text, s.recordId)}
                   className="block w-full rounded-xl border border-border bg-card px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-sage-soft cursor-pointer"
                 >
-                  {s}
+                  {s.text}
                 </button>
               ))}
             </div>

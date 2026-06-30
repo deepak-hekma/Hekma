@@ -110,8 +110,9 @@ function Index() {
     setChatOpen(true);
   };
 
-  const handleSuggestion = (q: string) => {
+  const handleSuggestion = (q: string, recordId: string | null) => {
     setChatPrefillText(q);
+    setChatAttachRecord(recordId ? records.find(r => r.id === recordId) || null : null);
     setChatOpen(true);
   };
 

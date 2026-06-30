@@ -7,10 +7,15 @@ import {
   ShieldCheck, HelpCircle, Calendar, Syringe
 } from "lucide-react";
 
+export interface SuggestionItem {
+  text: string;
+  recordId: string | null;
+}
+
 interface Props {
   patient: PatientSummary;
   records: FhirRecord[];
-  onSuggestion: (q: string) => void;
+  onSuggestion: (q: string, recordId: string | null) => void;
   onNavigate: (view: string) => void;
   onSelectRecord: (id: string) => void;
 }
@@ -91,18 +96,24 @@ export function OverviewDashboard({
     };
   }, [records]);
 
-  const suggestions = useMemo(() => {
-    const list: string[] = [];
+  const suggestions = useMemo<SuggestionItem[]>(() => {
+    const list: SuggestionItem[] = [];
+
+    const isExcludedObservation = (title: string) => {
+      const t = title.toLowerCase();
+      return t.includes("cause of death") || t.includes("death certificate") || t.includes("certification of death");
+    };
 
     // 1. Find conditions
     const activeConditions = records.filter((r) => r.resourceType === "Condition" && r.status === "active");
     const anyConditions = activeConditions.length > 0 ? activeConditions : records.filter((r) => r.resourceType === "Condition");
     if (anyConditions.length > 0) {
-      const condName = anyConditions[0].title
+      const condRecord = anyConditions[0];
+      const condName = condRecord.title
         .replace(/\s*\([^)]*\)/g, "")
         .trim();
-      list.push(`What is ${condName}?`);
-      list.push(`How is my ${condName} managed?`);
+      list.push({ text: `What is ${condName}?`, recordId: condRecord.id });
+      list.push({ text: `How is my ${condName} managed?`, recordId: condRecord.id });
     }
 
     // 2. Find medications
@@ -112,35 +123,49 @@ export function OverviewDashboard({
         r.resourceType === "MedicationRequest",
     );
     if (meds.length > 0) {
-      const medName = meds[0].title
+      const medRecord = meds[0];
+      const medName = medRecord.title
         .split(" ")[0]
         .replace(/[,;]/g, "");
-      list.push(`Why am I prescribed ${medName}?`);
+      list.push({ text: `Why am I prescribed ${medName}?`, recordId: medRecord.id });
     }
 
-    // 3. Find recent lab observations
-    const labsList = records.filter((r) => r.resourceType === "Observation" && !isVitalTitle(r.title));
+    // 3. Find recent lab observations (excluding vitals and death records)
+    const labsList = records.filter(
+      (r) => r.resourceType === "Observation" && !isVitalTitle(r.title) && !isExcludedObservation(r.title)
+    );
     if (labsList.length > 0) {
-      const obsName = labsList[0].title.toLowerCase();
-      list.push(`What does my last ${obsName} result mean?`);
+      const labRecord = labsList[0];
+      const obsName = labRecord.title.toLowerCase();
+      list.push({ text: `What does my last ${obsName} result mean?`, recordId: labRecord.id });
     }
 
     // 4. Find allergies
     const allergiesList = records.filter((r) => r.resourceType === "AllergyIntolerance");
     if (allergiesList.length > 0) {
-      const allergyName = allergiesList[0].title.toLowerCase();
-      list.push(`Do I have any allergies to ${allergyName}?`);
+      const allergyRecord = allergiesList[0];
+      const allergyName = allergyRecord.title.toLowerCase();
+      list.push({ text: `Do I have any allergies to ${allergyName}?`, recordId: allergyRecord.id });
     }
 
     // Fallbacks
-    const fallbacks = [
-      "What diagnoses are on my profile?",
-      "Explain my latest lab reports",
-      "What medications am I taking?",
-      "Do I have any allergies noted?",
+    const fallbacks: SuggestionItem[] = [
+      { text: "What diagnoses are on my profile?", recordId: null },
+      { text: "Explain my latest lab reports", recordId: null },
+      { text: "What medications am I taking?", recordId: null },
+      { text: "Do I have any allergies noted?", recordId: null },
     ];
 
-    const merged = Array.from(new Set([...list, ...fallbacks]));
+    // Deduplicate items by text
+    const seen = new Set<string>();
+    const merged: SuggestionItem[] = [];
+    for (const item of [...list, ...fallbacks]) {
+      if (!seen.has(item.text)) {
+        seen.add(item.text);
+        merged.push(item);
+      }
+    }
+
     return merged.slice(0, 4);
   }, [records]);
 
@@ -552,9 +577,9 @@ export function OverviewDashboard({
               variant="outline"
               size="sm"
               className="rounded-full border-sage/30 bg-card hover:bg-sage-soft cursor-pointer"
-              onClick={() => onSuggestion(s)}
+              onClick={() => onSuggestion(s.text, s.recordId)}
             >
-              {s}
+              {s.text}
             </Button>
           ))}
         </div>
