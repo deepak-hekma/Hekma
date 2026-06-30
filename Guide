@@ -1,0 +1,131 @@
+# Hekma Presentation & Architecture Guide
+
+Welcome! This guide is designed to help you present **Hekma** end-to-end in your upcoming meeting. It outlines the core value proposition, the system architecture, how data flows through the application, and a structured script for a live demonstration.
+
+---
+
+## 1. Project Overview & Value Proposition
+
+**Hekma** (meaning *wisdom* or *judgment* in Arabic) is a patient-facing health platform that bridges the gap between complex, structured medical records (FHIR format) and natural human understanding. 
+
+### The Problem
+* Medical records are exported in complex, nested standards like FHIR (Fast Healthcare Interoperability Resources) which are unreadable to everyday patients.
+* Patient portals (like MyChart) show raw values, labs, and diagnoses but fail to explain *what they actually mean* in plain language.
+* General chatbots (like ChatGPT) lack access to the patient's actual medical history, leading to generic advice or risk of hallucinated information.
+
+### The Solution: Hekma
+* **Personalized Health Assistant**: Translates complex FHIR bundles into a clean, modern patient dashboard.
+* **Graph-Structured Records**: Utilizes Neo4j to store patient data as a relational graph, maintaining the links between encounters, procedures, conditions, and observations.
+* **Retrieval-Augmented Generation (RAG)**: Connects a conversational AI (powered by Groq & LLaMA/GPT models) directly to the patient's verified records to answer questions safely and accurately.
+* **Clinical Safety**: Includes a built-in safety guardrails layer (`llama-prompt-guard`) to filter out unsafe query patterns.
+
+---
+
+## 2. System Architecture
+
+Hekma uses a modern three-tier architecture combining a graph database, a REST API server, and a React-based frontend web app.
+
+```mermaid
+graph TD
+    %% Frontend Tier
+    subgraph Frontend [Frontend Tier - React / TanStack Start]
+        UI[Patient Dashboard]
+        CP[Chat Panel]
+        MH[Medical History View]
+    end
+
+    %% Backend API Tier
+    subgraph Backend [Backend API Tier - Flask]
+        FA[Flask API Server]
+        SG[Safety Guard: Llama-Prompt-Guard]
+        LLM[Conversational LLM - Groq]
+    end
+
+    %% Data Store Tier
+    subgraph DataStore [Data Store Tier - Neo4j Graph DB]
+        N4J[(Neo4j Graph Database)]
+        ETL[ETL Ingestion Script]
+        FHIR[(Synthea FHIR JSON Files)]
+    end
+
+    %% Interaction Paths
+    FHIR -->|Parsed By| ETL
+    ETL -->|Populated Into| N4J
+    
+    UI -->|1. Fetch Patients & Records| FA
+    FA -->|2. Query Graph Cypher| N4J
+    
+    CP -->|3. Ask Question| FA
+    FA -->|4. Retrieve Context Records| N4J
+    FA -->|5. Check Safety| SG
+    FA -->|6. Run RAG Inference| LLM
+    LLM -->|7. Stream Response Tokens| CP
+```
+
+### Component Details
+1. **Frontend (TanStack Start / React)**
+   * **Framework**: React 19, Vite, TanStack Router (Typescript).
+   * **Styling**: Tailwind CSS, Lucide icons, Google Fonts (Work Sans, Instrument Serif).
+   * **Features**: Dynamic patient selector, overview dashboard, organized medical history categories (Conditions, Medications, Labs, Vitals), and a collapsible, streaming chatbot panel.
+
+2. **Backend Server (Flask & Python)**
+   * **Server**: Lightweight Flask app serving REST endpoints under `/api`.
+   * **Core Routes**:
+     * `/api/health`: Monitors database connection status and Groq API config.
+     * `/api/patients`: Lists all patients in the Neo4j database.
+     * `/api/patients/<id>/records`: Retrieves and formats a specific patient's history.
+     * `/api/chat`: Receives user messages, performs Neo4j record retrieval, queries prompt safety, and streams responses from Groq.
+
+3. **Database (Neo4j Graph)**
+   * Why Neo4j? Healthcare data is naturally connected. Rather than standard SQL joins, Neo4j models relationships directly (e.g., `(Patient)-[:HAS_RECORD]->(Record)` and `(Encounter)-[:HAS_PART]->(Observation)`).
+   * Stores Synthea-generated synthetic FHIR bundles imported through the ingestion pipeline.
+
+---
+
+## 3. The Data Ingestion Flow (ETL)
+
+To demonstrate how the data gets populated:
+1. **Source Data**: Synthetic patient records are located in [my-ehr-guide/Data/fhir](file:///c:/hekma/Hekma/my-ehr-guide/Data/fhir). These are generated using **Synthea**, a realistic patient generator.
+2. **Ingestion Pipeline**: The [backend/etl.py](file:///c:/hekma/Hekma/backend/etl.py) script reads the JSON files, extracts patient metadata, structures the records (observations, conditions, encounters, medications, immunizations, allergies), creates indexes, and merges them into Neo4j nodes.
+
+---
+
+## 4. Live Demo Walkthrough Script
+
+Here is a step-by-step walkthrough to present the app during your meeting.
+
+### Step 1: The Setup
+1. Open your terminal in the workspace root.
+2. Verify both servers are running:
+   * **Backend server**: [backend/app.py](file:///c:/hekma/Hekma/backend/app.py) is running on `http://127.0.0.1:5000`.
+   * **Frontend server**: `my-ehr-guide` is running (usually on `http://localhost:5173`).
+3. Open your browser and navigate to the frontend URL.
+
+### Step 2: Showcase the Patient Selector & Dashboard
+1. Point out the dropdown in the top-right corner containing the patients loaded dynamically from Neo4j.
+2. Switch between a few patients to show how the dashboard immediately updates (conditions, medications, recent visits, and core vitals like blood pressure or weight).
+3. **Key Point**: Emphasize that all this information is retrieved in real-time from the **Neo4j graph database** using Cypher queries.
+
+### Step 3: Drill Down into Medical History
+1. Click on the **"Medical History"** tab on the left sidebar.
+2. Show the categorized tabs: **Conditions**, **Medications**, **Labs**, and **Vitals**.
+3. Select a lab result (e.g., *Hemoglobin A1c* or *Cholesterol*).
+4. Notice the side panel detailing the provider, the date, reference values, and any doctor notes.
+5. Click **"Ask Hekma about this record"** directly from the lab page. This opens the Chat Panel and pre-attaches the record.
+
+### Step 4: Interact with the RAG Chatbot
+1. Submit a question (e.g., *"Can you explain my last lab result?"* or *"What medications am I taking?"*).
+2. Point out:
+   * **Speed**: The response streams in real-time token-by-token (powered by Groq's high-speed inference).
+   * **Context Awareness**: The chatbot knows who the patient is, their age, their specific medical history, and the active record you selected.
+   * **Safety**: Every reply finishes with an educational disclaimer.
+   * **Sources**: The AI cites the exact record IDs it referenced at the bottom of its response. Clicking a cited record immediately takes the user to that record's detail card!
+
+---
+
+## 5. Key Talking Points for the Meeting
+
+* **FHIR-to-Graph mapping**: Relational databases struggle with hierarchical medical standards. By loading FHIR directly into Neo4j, we capture the full schema (e.g., linking a lab result back to the specific doctor encounter where it was ordered).
+* **RAG Architecture**: The LLM is not answering from general public training data; it is dynamically fed the patient's actual graph-retrieved nodes to guarantee factual accuracy.
+* **Dual API Route**: In dev mode, the React app uses Vite's proxy rules to seamlessly forward `/api` requests to Flask, avoiding CORS issues.
+* **Ingestion Scale**: The system is designed to scale; the ETL pipeline can ingest thousands of complex patient records and query them in milliseconds using Neo4j indexes.
