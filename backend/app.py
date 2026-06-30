@@ -214,11 +214,23 @@ def chat():
                 
                 vitals_records = list(vitals_map.values())
 
-                # Query 2: Get active/recent conditions, medications, allergies (up to 12)
+                # Query 2: Get all allergies
+                a_result = session.run(
+                    """
+                    MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
+                    WHERE r.resourceType = 'AllergyIntolerance'
+                    RETURN r {.*} as record
+                    ORDER BY r.date DESC
+                    """,
+                    {"patient_id": patient_id}
+                )
+                allergy_records = [row["record"] for row in a_result]
+
+                # Query 3: Get active/recent conditions, medications (up to 12)
                 c_result = session.run(
                     """
                     MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
-                    WHERE r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest', 'AllergyIntolerance']
+                    WHERE r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest']
                     RETURN r {.*} as record
                     ORDER BY r.date DESC
                     LIMIT 12
@@ -227,7 +239,7 @@ def chat():
                 )
                 other_records = [row["record"] for row in c_result]
 
-                # Query 3: Get other recent records like encounters/procedures (up to 4)
+                # Query 4: Get other recent records like encounters/procedures (up to 4)
                 e_result = session.run(
                     """
                     MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
@@ -248,7 +260,7 @@ def chat():
                 recent_records = [row["record"] for row in e_result]
 
                 # Combine all retrieved records
-                combined_records = vitals_records + other_records + recent_records
+                combined_records = vitals_records + allergy_records + other_records + recent_records
                 
                 serialized_items = []
                 for r in combined_records:
