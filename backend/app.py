@@ -226,54 +226,88 @@ def chat():
                 )
                 allergy_records = [row["record"] for row in a_result]
 
-                # Query 3: Get active/recent conditions, medications (up to 12)
+                # Query 3: Get recent conditions & medications (up to 10)
                 c_result = session.run(
                     """
                     MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
                     WHERE r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest']
                     RETURN r {.*} as record
                     ORDER BY r.date DESC
-                    LIMIT 12
+                    LIMIT 10
                     """,
                     {"patient_id": patient_id}
                 )
                 other_records = [row["record"] for row in c_result]
 
-                # Query 4: Get recent immunizations (up to 8)
+                # Query 4: Get recent immunizations (up to 6)
                 i_result = session.run(
                     """
                     MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
                     WHERE r.resourceType = 'Immunization'
                     RETURN r {.*} as record
                     ORDER BY r.date DESC
-                    LIMIT 8
+                    LIMIT 6
                     """,
                     {"patient_id": patient_id}
                 )
                 immunization_records = [row["record"] for row in i_result]
 
-                # Query 5: Get other recent records like encounters/procedures (up to 4)
-                e_result = session.run(
+                # Query 5: Get recent non-vital lab observations (up to 6)
+                l_result = session.run(
                     """
                     MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
-                    WHERE NOT r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest', 'AllergyIntolerance', 'Immunization']
-                      AND NOT (r.resourceType = 'Observation' AND (
+                    WHERE r.resourceType = 'Observation'
+                      AND NOT (
                         toLower(r.title) CONTAINS 'blood pressure' OR 
                         toLower(r.title) CONTAINS 'heart rate' OR 
                         toLower(r.title) CONTAINS 'glucose' OR 
                         toLower(r.title) CONTAINS 'a1c' OR 
                         toLower(r.title) CONTAINS 'steps'
-                      ))
+                      )
+                    RETURN r {.*} as record
+                    ORDER BY r.date DESC
+                    LIMIT 6
+                    """,
+                    {"patient_id": patient_id}
+                )
+                lab_records = [row["record"] for row in l_result]
+
+                # Query 6: Get recent encounters (up to 4)
+                enc_result = session.run(
+                    """
+                    MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
+                    WHERE r.resourceType = 'Encounter'
                     RETURN r {.*} as record
                     ORDER BY r.date DESC
                     LIMIT 4
                     """,
                     {"patient_id": patient_id}
                 )
-                recent_records = [row["record"] for row in e_result]
+                encounter_records = [row["record"] for row in enc_result]
+
+                # Query 7: Get recent procedures (up to 4)
+                proc_result = session.run(
+                    """
+                    MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
+                    WHERE r.resourceType = 'Procedure'
+                    RETURN r {.*} as record
+                    ORDER BY r.date DESC
+                    LIMIT 4
+                    """,
+                    {"patient_id": patient_id}
+                )
+                procedure_records = [row["record"] for row in proc_result]
 
                 # Combine all retrieved records
-                combined_records = vitals_records + allergy_records + immunization_records + other_records + recent_records
+                combined_records = (
+                    vitals_records + 
+                    allergy_records + 
+                    immunization_records + 
+                    other_records + 
+                    lab_records + 
+                    encounter_records + 
+                    procedure_records
+                )
                 
                 serialized_items = []
                 for r in combined_records:
