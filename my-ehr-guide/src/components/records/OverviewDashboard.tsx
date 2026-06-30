@@ -81,12 +81,13 @@ export function OverviewDashboard({
     const bpRecord = records.find(r => r.title.toLowerCase().includes("blood pressure"));
     const glucoseRecord = records.find(r => r.title.toLowerCase().includes("glucose") || r.title.toLowerCase().includes("a1c"));
     const hrRecord = records.find(r => r.title.toLowerCase().includes("heart rate") || r.title.toLowerCase().includes("pulse"));
+    const stepsRecord = records.find(r => r.title.toLowerCase().includes("steps") || r.title.toLowerCase().includes("step count"));
     
     return {
-      bp: bpRecord ? bpRecord.subtitle || bpRecord.fields?.[0]?.value || "120/80 mmHg" : "120/80 mmHg",
-      glucose: glucoseRecord ? glucoseRecord.subtitle || glucoseRecord.fields?.[0]?.value || "95 mg/dL" : "95 mg/dL",
-      hr: hrRecord ? hrRecord.subtitle || hrRecord.fields?.[0]?.value || "72 bpm" : "72 bpm",
-      steps: "8,432 steps" // Mock steps count since Synthea doesn't always contain steps
+      bp: bpRecord ? bpRecord.subtitle || bpRecord.fields?.[0]?.value || null : null,
+      glucose: glucoseRecord ? glucoseRecord.subtitle || glucoseRecord.fields?.[0]?.value || null : null,
+      hr: hrRecord ? hrRecord.subtitle || hrRecord.fields?.[0]?.value || null : null,
+      steps: stepsRecord ? stepsRecord.subtitle || stepsRecord.fields?.[0]?.value || null : null
     };
   }, [records]);
 
@@ -406,23 +407,45 @@ export function OverviewDashboard({
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-border bg-muted/10 p-3 space-y-1 hover:border-sage/20 transition-all">
                 <div className="text-[10px] uppercase font-semibold text-muted-foreground">Blood Pressure</div>
-                <div className="text-sm font-semibold text-ink">{dailyVitals.bp}</div>
-                <div className="text-[9px] text-emerald-600 flex items-center gap-0.5"><Activity className="h-3 w-3" /> Normal</div>
+                <div className={`text-sm font-semibold ${dailyVitals.bp ? "text-ink" : "text-muted-foreground/60"}`}>
+                  {dailyVitals.bp || "Not recorded"}
+                </div>
+                {dailyVitals.bp && (
+                  <div className="text-[9px] text-emerald-600 flex items-center gap-0.5">
+                    <Activity className="h-3 w-3" /> Normal
+                  </div>
+                )}
               </div>
               <div className="rounded-xl border border-border bg-muted/10 p-3 space-y-1 hover:border-sage/20 transition-all">
                 <div className="text-[10px] uppercase font-semibold text-muted-foreground">Blood Glucose</div>
-                <div className="text-sm font-semibold text-ink">{dailyVitals.glucose}</div>
-                <div className="text-[9px] text-emerald-600 flex items-center gap-0.5"><Activity className="h-3 w-3" /> Stable</div>
+                <div className={`text-sm font-semibold ${dailyVitals.glucose ? "text-ink" : "text-muted-foreground/60"}`}>
+                  {dailyVitals.glucose || "Not recorded"}
+                </div>
+                {dailyVitals.glucose && (
+                  <div className="text-[9px] text-emerald-600 flex items-center gap-0.5">
+                    <Activity className="h-3 w-3" /> Stable
+                  </div>
+                )}
               </div>
               <div className="rounded-xl border border-border bg-muted/10 p-3 space-y-1 hover:border-sage/20 transition-all">
                 <div className="text-[10px] uppercase font-semibold text-muted-foreground">Heart Rate</div>
-                <div className="text-sm font-semibold text-ink">{dailyVitals.hr}</div>
-                <div className="text-[9px] text-emerald-600 flex items-center gap-0.5"><Heart className="h-3 w-3 text-red-500 fill-red-500" /> Stable</div>
+                <div className={`text-sm font-semibold ${dailyVitals.hr ? "text-ink" : "text-muted-foreground/60"}`}>
+                  {dailyVitals.hr || "Not recorded"}
+                </div>
+                {dailyVitals.hr && (
+                  <div className="text-[9px] text-emerald-600 flex items-center gap-0.5">
+                    <Heart className="h-3 w-3 text-red-500 fill-red-500" /> Stable
+                  </div>
+                )}
               </div>
               <div className="rounded-xl border border-border bg-muted/10 p-3 space-y-1 hover:border-sage/20 transition-all">
                 <div className="text-[10px] uppercase font-semibold text-muted-foreground">Steps</div>
-                <div className="text-sm font-semibold text-ink">{dailyVitals.steps}</div>
-                <div className="text-[9px] text-muted-foreground">Daily Goal: 10k</div>
+                <div className={`text-sm font-semibold ${dailyVitals.steps ? "text-ink" : "text-muted-foreground/60"}`}>
+                  {dailyVitals.steps || "Not recorded"}
+                </div>
+                {dailyVitals.steps && (
+                  <div className="text-[9px] text-muted-foreground">Daily Goal: 10k</div>
+                )}
               </div>
             </div>
           </div>

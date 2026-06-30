@@ -181,24 +181,77 @@ def chat():
                     )
             
             # 3. Fetch patient records to serialize for system prompt context
-            # To avoid rate limits (8000 TPM), we limit context to the 15 most important records and cap fields per record.
             if patient_id:
-                r_result = session.run(
+                # Query 1: Get latest vitals (BP, Glucose, Heart Rate, Steps) to ensure they are never cut off
+                v_result = session.run(
                     """
                     MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
-                    // Prioritize conditions, medications, allergies, and recent items
-                    WITH r,
-                         CASE WHEN r.resourceType IN ['Condition', 'MedicationStatement', 'AllergyIntolerance'] THEN 0 ELSE 1 END as priority
+                    WHERE r.resourceType = 'Observation' AND (
+                      toLower(r.title) CONTAINS 'blood pressure' OR 
+                      toLower(r.title) CONTAINS 'heart rate' OR 
+                      toLower(r.title) CONTAINS 'glucose' OR 
+                      toLower(r.title) CONTAINS 'a1c' OR 
+                      toLower(r.title) CONTAINS 'steps'
+                    )
                     RETURN r {.*} as record
-                    ORDER BY priority ASC, r.date DESC
-                    LIMIT 15
+                    ORDER BY r.date DESC
                     """,
                     {"patient_id": patient_id}
                 )
                 
+                vitals_map = {}
+                for row in v_result:
+                    rec = row["record"]
+                    title = rec["title"].lower()
+                    key = None
+                    if "blood pressure" in title: key = "bp"
+                    elif "heart rate" in title or "pulse" in title: key = "hr"
+                    elif "glucose" in title or "a1c" in title: key = "glucose"
+                    elif "steps" in title: key = "steps"
+                    
+                    if key and key not in vitals_map:
+                        vitals_map[key] = rec
+                
+                vitals_records = list(vitals_map.values())
+
+                # Query 2: Get active/recent conditions, medications, allergies (up to 12)
+                c_result = session.run(
+                    """
+                    MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
+                    WHERE r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest', 'AllergyIntolerance']
+                    RETURN r {.*} as record
+                    ORDER BY r.date DESC
+                    LIMIT 12
+                    """,
+                    {"patient_id": patient_id}
+                )
+                other_records = [row["record"] for row in c_result]
+
+                # Query 3: Get other recent records like encounters/procedures (up to 4)
+                e_result = session.run(
+                    """
+                    MATCH (p:Patient {id: $patient_id})-[:HAS_RECORD]->(r:Record)
+                    WHERE NOT r.resourceType IN ['Condition', 'MedicationStatement', 'MedicationRequest', 'AllergyIntolerance']
+                      AND NOT (r.resourceType = 'Observation' AND (
+                        toLower(r.title) CONTAINS 'blood pressure' OR 
+                        toLower(r.title) CONTAINS 'heart rate' OR 
+                        toLower(r.title) CONTAINS 'glucose' OR 
+                        toLower(r.title) CONTAINS 'a1c' OR 
+                        toLower(r.title) CONTAINS 'steps'
+                      ))
+                    RETURN r {.*} as record
+                    ORDER BY r.date DESC
+                    LIMIT 4
+                    """,
+                    {"patient_id": patient_id}
+                )
+                recent_records = [row["record"] for row in e_result]
+
+                # Combine all retrieved records
+                combined_records = vitals_records + other_records + recent_records
+                
                 serialized_items = []
-                for row in r_result:
-                    r = row["record"]
+                for r in combined_records:
                     fields_list = json.loads(r["fields"]) if isinstance(r.get("fields"), str) else r.get("fields", [])
                     # Cap serialized fields at 8 to keep context size small
                     fields_str = "\n".join([f"    - {f['label']}: {f['value']}" for f in fields_list[:8]])
@@ -233,6 +286,7 @@ def chat():
         f"You help the patient understand their own medical records.\n\n"
         f"RULES:\n"
         f"- Only use information from the records below. Never invent values, dates, providers, or diagnoses.\n"
+        f"- Note that the patient dashboard has a card named 'Daily Activities' which displays key vital signs: Blood Pressure, Blood Glucose, Heart Rate, and Steps. If the user asks about their 'Daily Activities' or dashboard activities, refer to these vital sign observations from their records.\n"
         f"- If the question can't be answered from the records, say so plainly and suggest related things you CAN answer.\n"
         f"- Be warm, plain-language, and concise. Use short paragraphs and bullet lists.\n"
         f"- End every substantive medical reply with: _Educational summary based on your records, not medical advice._\n"
