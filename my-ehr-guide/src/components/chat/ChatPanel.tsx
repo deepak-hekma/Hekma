@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import logoUrl from "@/assets/hekma-logo.png";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUp, Plus, X, FileText } from "lucide-react";
+import { ArrowUp, Plus, X, FileText, ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type ChatMessage, streamAnswer } from "@/lib/chatbot";
 import { loadChat, saveChat, clearChat } from "@/lib/chatStorage";
@@ -181,7 +181,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
       }
     }
 
-    return merged.slice(0, 3); // Keep top 3 suggestions for layout consistency
+    return merged.slice(0, 3); // MessageBubble is now defined above to support layout order cleanly
   }, [records]);
 
   const getRecordById = (id: string) => records.find((r) => r.id === id);
@@ -291,24 +291,30 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
 
   return (
     <section
-      className="flex h-full w-full flex-col border-l border-border bg-background"
+      className="flex h-full w-full flex-col bg-white"
       aria-label="Chat with Hekma"
     >
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
-        <div className="flex items-center gap-2">
-          <img src={logoUrl} alt="" width={22} height={22} className="size-5" />
-          <div>
-            <div className="text-sm font-medium leading-none text-ink">Hekma</div>
-            <div className="text-[10px] leading-tight text-muted-foreground">
-              {pending ? "Reading your records…" : "Ready"}
+      {/* Custom Bento Chat Header */}
+      <header className="p-5 border-b border-slate-100 bg-gradient-to-r from-brand-50 to-white flex justify-between items-center shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full gradient-bg p-[1.5px]">
+              <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
+                <Sparkles className="text-brand-500 text-lg size-5 fill-brand-500 animate-pulse" />
+              </div>
             </div>
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-ping-once"></div>
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm leading-none">Ask Hekma</h3>
+            <p className="text-[9px] text-slate-400 mt-1 font-bold uppercase tracking-wide">AI Health Assistant</p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1.5 px-2 text-xs"
+            className="h-8 gap-1 rounded-full px-3 text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold"
             onClick={newConversation}
             disabled={messages.length === 0 && !streamingText}
           >
@@ -316,41 +322,46 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
             New
           </Button>
           {onClose && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 rounded-lg text-ink/75 hover:bg-ink/5"
+            <button
               onClick={onClose}
+              className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors cursor-pointer focus:outline-none"
               aria-label="Close chat"
             >
               <X className="size-4" />
-            </Button>
+            </button>
           )}
         </div>
       </header>
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+        className="min-h-0 flex-1 overflow-y-auto custom-scroll p-5 space-y-4 bg-[#fafbfc]"
         aria-live="polite"
         aria-relevant="additions"
       >
         {messages.length === 0 && !pending && (
-          <div className="space-y-4 py-6">
-            <div className="text-sm leading-relaxed text-ink/85">
-              Hi, I'm <span className="font-serif text-base">Hekma</span>. I can help answer questions
-              about your health records, explain test results, and summarize your visits. I'll
-              always show where the information comes from.
+          <div className="space-y-4 py-2">
+            <div className="flex gap-3 max-w-[90%]">
+              <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                <Sparkles className="size-4 fill-brand-600" />
+              </div>
+              <div className="bg-white border border-slate-100 p-4 rounded-2xl rounded-tl-sm shadow-soft text-sm text-slate-700 leading-relaxed font-medium">
+                Hi Sarah! I'm Hekma. I can help analyze Abdul's records, explain his lab results, or summarize his medication schedule. How can I assist you today?
+              </div>
             </div>
-            <div className="space-y-1.5">
+
+            {/* Suggestions list */}
+            <div className="pl-11 space-y-2 mt-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Suggested Actions</p>
               {chatWelcomeSuggestions.map((s) => (
                 <button
                   key={s.text}
                   type="button"
                   onClick={() => submit(s.text, s.recordId)}
-                  className="block w-full rounded-xl border border-border bg-card px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-sage-soft cursor-pointer"
+                  className="w-full text-left bg-white border border-slate-200 hover:border-brand-300 hover:bg-brand-50 p-3 rounded-xl text-xs font-semibold text-slate-700 transition-all shadow-soft flex justify-between items-center group cursor-pointer"
                 >
-                  {s.text}
+                  <span className="truncate pr-2">{s.text}</span>
+                  <ArrowRight className="size-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-brand-500 flex-shrink-0" />
                 </button>
               ))}
             </div>
@@ -362,58 +373,69 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
             <MessageBubble key={m.id} message={m} getRecordById={getRecordById} onSourceClick={onSourceClick} />
           ))}
           {pending && (
-            <div className="animate-fade-up">
-              {streamingText ? (
-                <div className="prose prose-sm max-w-none text-ink/90 prose-strong:text-ink prose-p:my-2">
-                  <ReactMarkdown>{streamingText}</ReactMarkdown>
-                </div>
-              ) : (
-                <div className="shimmer-text text-sm">Thinking…</div>
-              )}
+            <div className="flex gap-3 max-w-[90%] animate-fade-up">
+              <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                <Sparkles className="size-4 fill-brand-600 text-brand-600" />
+              </div>
+              <div className="bg-white border border-slate-100 p-4 rounded-2xl rounded-tl-sm shadow-soft text-sm text-slate-700 leading-relaxed font-medium w-full">
+                {streamingText ? (
+                  <div className="prose prose-sm max-w-none text-slate-700 prose-strong:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
+                    <ReactMarkdown>{streamingText}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="shimmer-text text-sm font-semibold">Thinking…</div>
+                )}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-border p-3">
+      {/* Input composer styled exactly like the template */}
+      <div className="p-4 bg-white border-t border-slate-100 shrink-0">
         {contextRecord && (
-          <div className="mb-2 flex items-center gap-2 rounded-full bg-sage-soft py-1 pl-2.5 pr-1 text-xs text-ink">
-            <FileText className="size-3.5 text-sage" />
+          <div className="mb-3 flex items-center gap-2 rounded-full bg-brand-50 border border-brand-100 py-1 pl-3 pr-1.5 text-xs text-brand-700 font-semibold animate-fade-in">
+            <FileText className="size-3.5 text-brand-500" />
             <span className="truncate">About: {contextRecord.title}</span>
             <button
               type="button"
               onClick={() => setContextRecordId(null)}
-              className="ml-auto grid size-5 place-items-center rounded-full hover:bg-background"
+              className="ml-auto grid size-5 place-items-center rounded-full hover:bg-brand-100"
               aria-label="Remove record context"
             >
               <X className="size-3" />
             </button>
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 focus-within:border-sage focus-within:ring-2 focus-within:ring-sage/20">
-          <Textarea
-            ref={textareaRef}
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            ref={textareaRef as any}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder="Ask about your health…"
-            rows={1}
-            className="min-h-9 resize-none border-0 bg-transparent px-2 py-1.5 text-sm shadow-none focus-visible:ring-0"
-            aria-label="Message Hekma"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submit(input);
+              }
+            }}
+            placeholder="Ask anything..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-full py-3.5 pl-4 pr-12 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-400 transition-all font-medium"
             disabled={pending}
           />
-          <Button
-            size="icon"
-            className={cn("size-9 shrink-0 rounded-xl", !input.trim() && "opacity-50")}
+          <button
             onClick={() => submit(input)}
             disabled={!input.trim() || pending}
-            aria-label="Send message"
+            className={cn(
+              "absolute right-1.5 w-10 h-10 gradient-bg text-white rounded-full flex items-center justify-center hover:shadow-md transition-all cursor-pointer focus:outline-none",
+              (!input.trim() || pending) && "opacity-50 pointer-events-none"
+            )}
           >
             <ArrowUp className="size-4" />
-          </Button>
+          </button>
         </div>
-        <p className="mt-1.5 px-1 text-[10px] text-muted-foreground">
-          Hekma reads your records to answer. Not medical advice.
+        <p className="text-[9px] text-center text-slate-400 mt-3 px-2 font-medium">
+          Hekma uses AI to analyze records. Always verify clinical decisions.
         </p>
       </div>
     </section>
@@ -435,13 +457,13 @@ function MessageBubble({
         <div className="max-w-[85%] space-y-1">
           {message.sourceIds?.[0] && (
             <div className="flex justify-end">
-              <span className="inline-flex items-center gap-1 rounded-full bg-sage-soft px-2 py-0.5 text-[10px] text-ink">
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 border border-brand-100 px-2 py-0.5 text-[10px] text-brand-700 font-semibold">
                 <FileText className="size-2.5" />
                 {getRecordById(message.sourceIds[0])?.title ?? "record"}
               </span>
             </div>
           )}
-          <div className="rounded-2xl rounded-br-md bg-sage px-3.5 py-2 text-sm text-primary-foreground">
+          <div className="rounded-2xl rounded-br-md bg-gradient-to-tr from-brand-500 to-indigo-600 px-4 py-2.5 text-sm text-white font-medium shadow-md">
             {message.content}
           </div>
         </div>
@@ -450,30 +472,35 @@ function MessageBubble({
   }
 
   return (
-    <div className="animate-fade-up space-y-2">
-      <div className="prose prose-sm max-w-none text-ink/90 prose-strong:text-ink prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
-        <ReactMarkdown>{message.content}</ReactMarkdown>
+    <div className="flex gap-3 max-w-[90%] animate-fade-up">
+      <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+        <Sparkles className="size-4 fill-brand-600 text-brand-600" />
       </div>
-      {message.sourceIds && message.sourceIds.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Sources</span>
-          {message.sourceIds.map((id) => {
-            const r = getRecordById(id);
-            if (!r) return null;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => onSourceClick(id)}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-ink hover:bg-sage-soft"
-              >
-                <FileText className="size-2.5 text-sage" />
-                {r.title}
-              </button>
-            );
-          })}
+      <div className="bg-white border border-slate-100 p-4 rounded-2xl rounded-tl-sm shadow-soft text-sm text-slate-700 leading-relaxed font-medium">
+        <div className="prose prose-sm max-w-none text-slate-700 prose-strong:text-slate-900 prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
         </div>
-      )}
+        {message.sourceIds && message.sourceIds.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-2 mt-2 border-t border-slate-50">
+            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400">Sources</span>
+            {message.sourceIds.map((id) => {
+              const r = getRecordById(id);
+              if (!r) return null;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onSourceClick(id)}
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-100 bg-slate-50 hover:bg-brand-50 hover:text-brand-700 px-2.5 py-0.5 text-[10px] text-slate-600 transition-colors font-medium cursor-pointer"
+                >
+                  <FileText className="size-2.5 text-brand-500" />
+                  {r.title}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

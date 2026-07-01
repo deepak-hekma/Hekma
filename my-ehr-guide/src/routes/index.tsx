@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState, useEffect } from "react";
 import { 
   MessageCircle, X, LayoutDashboard, FolderHeart, 
-  FlaskConical, BookOpen, User, History, ArrowLeft, ChevronDown
+  FlaskConical, BookOpen, User, History, ArrowLeft, ChevronDown, Sparkles
 } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { RecordsSidebar } from "@/components/records/RecordsSidebar";
@@ -182,134 +182,205 @@ function Index() {
   const filteredLabs = records.filter(r => r.resourceType === "Observation" && !r.title.toLowerCase().includes("blood pressure") && !r.title.toLowerCase().includes("heart rate") && !r.title.toLowerCase().includes("temperature"));
   const filteredVitals = records.filter(r => r.resourceType === "Observation" && (r.title.toLowerCase().includes("blood pressure") || r.title.toLowerCase().includes("heart rate") || r.title.toLowerCase().includes("temperature")));
 
+  // Dynamic formatted date
+  const currentDateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric'
+  });
+
   return (
-    <div className="flex h-dvh flex-col bg-background text-ink">
-      <TopBar patient={selectedPatient} />
-      
-      <div 
-        className={`grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] transition-all duration-300 ${
-          chatOpen 
-            ? "lg:grid-cols-[280px_minmax(0,1fr)_360px] xl:grid-cols-[300px_minmax(0,1fr)_400px]" 
-            : "lg:grid-cols-[280px_1fr] xl:grid-cols-[300px_1fr]"
-        }`}
-      >
-        {/* Left Column: Combined Main Navigation & Records Category list */}
-        <div className="hidden min-h-0 flex-col border-r border-border md:flex bg-card">
-          {/* Main App Navigation Section */}
-          <div className="p-4 border-b border-border space-y-1">
-            <button
-              onClick={() => { setActiveView("dashboard"); setSelectedId(null); }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                activeView === "dashboard"
-                  ? "bg-sage/10 text-sage"
-                  : "text-muted-foreground hover:bg-muted/10 hover:text-ink"
-              }`}
-            >
-              <LayoutDashboard className="h-4.5 w-4.5" /> Dashboard
-            </button>
-            <button
-              onClick={() => { setActiveView("medicalhistory"); }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                activeView === "medicalhistory"
-                  ? "bg-sage/10 text-sage"
-                  : "text-muted-foreground hover:bg-muted/10 hover:text-ink"
-              }`}
-            >
-              <FolderHeart className="h-4.5 w-4.5" /> Medical History
-            </button>
-            <button
-              onClick={() => { setActiveView("trialmatch"); setSelectedId(null); }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                activeView === "trialmatch"
-                  ? "bg-sage/10 text-sage"
-                  : "text-muted-foreground hover:bg-muted/10 hover:text-ink"
-              }`}
-            >
-              <FlaskConical className="h-4.5 w-4.5" /> Trial Match
-            </button>
-            <button
-              onClick={() => { setActiveView("resources"); setSelectedId(null); }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                activeView === "resources"
-                  ? "bg-sage/10 text-sage"
-                  : "text-muted-foreground hover:bg-muted/10 hover:text-ink"
-              }`}
-            >
-              <BookOpen className="h-4.5 w-4.5" /> Resources
-            </button>
+    <div className="flex h-screen overflow-hidden bg-[#f8f9fc] text-slate-800 font-sans selection:bg-brand-500 selection:text-white">
+      {/* Sidebar - Bento style */}
+      <aside className="w-64 bg-white border-r border-slate-100 flex flex-col h-full flex-shrink-0 z-20 hidden lg:flex shadow-[4px_0_24px_rgba(0,0,0,0.01)]">
+        {/* Logo */}
+        <div className="p-8 flex items-center gap-3">
+          <div className="relative flex items-center justify-center w-8 h-8">
+            <span className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white font-extrabold text-base shadow-sm">
+              <Sparkles className="size-4 fill-white text-white" />
+            </span>
           </div>
-
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {activeView === "medicalhistory" && (
-              <RecordsSidebar
-                records={records}
-                selectedId={selectedId}
-                onSelect={(r) => setSelectedId(r.id)}
-              />
-            )}
-          </div>
-
-          {/* Active Patient Selector (aligned down but not at absolute bottom) */}
-          <div className="border-t border-border p-3 bg-muted/20 pb-8 space-y-3 relative">
-            <div className="relative">
-              <label className="block text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Active Patient
-              </label>
-              
-              {/* Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="w-full flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-ink hover:bg-muted/5 transition-colors focus:border-sage focus:outline-none cursor-pointer"
-              >
-                <span className="truncate">{selectedPatient?.name || "Select patient"}</span>
-                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* Custom Dropdown List */}
-              {dropdownOpen && (
-                <>
-                  {/* Backdrop to close */}
-                  <div 
-                    className="fixed inset-0 z-40 cursor-default" 
-                    onClick={() => setDropdownOpen(false)} 
-                  />
-                  
-                  <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-[350px] overflow-y-auto rounded-lg border border-border bg-background shadow-xl animate-fade-in-up">
-                    <ul className="py-1 text-xs text-ink divide-y divide-border/20">
-                      {patients.map((p) => (
-                        <li key={p.id}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleSelectPatient(p);
-                              setDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 hover:bg-sage-soft transition-colors cursor-pointer ${
-                              p.id === selectedPatientId ? "bg-sage/10 text-sage font-semibold" : ""
-                            }`}
-                          >
-                            {p.name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {activeView !== "medicalhistory" && (
-              <div className="text-center text-xs text-muted-foreground pt-3 border-t border-border/40 space-y-1">
-                <p>Welcome to Hekma dashboard.</p>
-                <p className="text-[10px] text-muted-foreground/80">Select "Medical History" to review individual medical record data sheets.</p>
-              </div>
-            )}
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 uppercase">Hekma</h1>
         </div>
 
-        {/* MAIN PANEL CONTENT */}
-        <main className="min-h-0 overflow-y-auto">
+        {/* Navigation Links */}
+        <nav className="flex-1 px-4 py-2 space-y-2">
+          <button
+            onClick={() => { setActiveView("dashboard"); setSelectedId(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl relative group transition-colors text-left cursor-pointer ${
+              activeView === "dashboard"
+                ? "bg-brand-50 text-brand-700 font-bold"
+                : "text-slate-500 hover:bg-slate-50 font-semibold"
+            }`}
+          >
+            {activeView === "dashboard" && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-brand-500 rounded-r-full"></div>
+            )}
+            <LayoutDashboard className={`h-5 w-5 ${activeView === "dashboard" ? "text-brand-600" : "text-slate-400 group-hover:text-slate-700"}`} />
+            <span className="text-sm">Dashboard</span>
+          </button>
+          
+          <button
+            onClick={() => { setActiveView("medicalhistory"); }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl relative group transition-colors text-left cursor-pointer ${
+              activeView === "medicalhistory"
+                ? "bg-brand-50 text-brand-700 font-bold"
+                : "text-slate-500 hover:bg-slate-50 font-semibold"
+            }`}
+          >
+            {activeView === "medicalhistory" && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-brand-500 rounded-r-full"></div>
+            )}
+            <div className="flex items-center gap-3">
+              <FolderHeart className={`h-5 w-5 ${activeView === "medicalhistory" ? "text-brand-600" : "text-slate-400 group-hover:text-slate-700"}`} />
+              <span className="text-sm">Patient 360</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => { setActiveView("trialmatch"); setSelectedId(null); }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl relative group transition-colors text-left cursor-pointer ${
+              activeView === "trialmatch"
+                ? "bg-brand-50 text-brand-700 font-bold"
+                : "text-slate-500 hover:bg-slate-50 font-semibold"
+            }`}
+          >
+            {activeView === "trialmatch" && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-brand-500 rounded-r-full"></div>
+            )}
+            <div className="flex items-center gap-3">
+              <FlaskConical className={`h-5 w-5 ${activeView === "trialmatch" ? "text-brand-600" : "text-slate-400 group-hover:text-slate-700"}`} />
+              <span className="text-sm">Trial Match</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => { setActiveView("resources"); setSelectedId(null); }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl relative group transition-colors text-left cursor-pointer ${
+              activeView === "resources"
+                ? "bg-brand-50 text-brand-700 font-bold"
+                : "text-slate-500 hover:bg-slate-50 font-semibold"
+            }`}
+          >
+            {activeView === "resources" && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-brand-500 rounded-r-full"></div>
+            )}
+            <div className="flex items-center gap-3">
+              <BookOpen className={`h-5 w-5 ${activeView === "resources" ? "text-brand-600" : "text-slate-400 group-hover:text-slate-700"}`} />
+              <span className="text-sm">Resources</span>
+            </div>
+          </button>
+        </nav>
+
+        {/* Sidebar records categories for medical history */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4">
+          {activeView === "medicalhistory" && (
+            <RecordsSidebar
+              records={records}
+              selectedId={selectedId}
+              onSelect={(r) => setSelectedId(r.id)}
+            />
+          )}
+        </div>
+
+        {/* Bottom Active Patient Selector / Profile */}
+        <div className="p-6 mt-auto space-y-4">
+          <div className="relative">
+            <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 pl-1">
+              Active Patient
+            </label>
+            
+            <button
+              type="button"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="w-full flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors focus:border-brand-300 focus:outline-none cursor-pointer shadow-soft"
+            >
+              <span className="truncate">{selectedPatient?.name || "Select patient"}</span>
+              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {dropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40 cursor-default" 
+                  onClick={() => setDropdownOpen(false)} 
+                />
+                <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-[350px] overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl animate-fade-in-up">
+                  <ul className="py-1 text-xs text-slate-700 divide-y divide-slate-50">
+                    {patients.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSelectPatient(p);
+                            setDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2.5 hover:bg-brand-50 hover:text-brand-700 transition-colors cursor-pointer ${
+                            p.id === selectedPatientId ? "bg-brand-50 text-brand-700 font-bold" : ""
+                          }`}
+                        >
+                          {p.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0">
+              Dr
+            </div>
+            <div className="overflow-hidden">
+              <h2 className="text-sm font-bold text-slate-800 truncate">Dr. Sarah</h2>
+              <p className="text-xs text-slate-500">Clinical View</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Column */}
+      <main className="flex-1 flex flex-col h-full relative overflow-hidden">
+        {/* Top Header */}
+        <header className="flex items-center justify-between px-8 py-6 bg-[#f8f9fc]/85 backdrop-blur-md z-10 sticky top-0 flex-shrink-0">
+          <div>
+            <p className="text-xs font-semibold text-slate-400 mb-1" id="current-date">{currentDateStr}</p>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Welcome back, Sarah</h2>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            {/* Search Bar */}
+            <div className="hidden md:flex relative items-center">
+              <span className="absolute left-4 text-slate-400">
+                <LayoutDashboard className="size-4" />
+              </span>
+              <input 
+                type="text" 
+                placeholder="Search anything..." 
+                className="bg-white border-none shadow-soft rounded-full py-2.5 pl-10 pr-6 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-brand-100 transition-all text-slate-600 placeholder-slate-400 font-medium"
+              />
+            </div>
+            
+            {/* Notification */}
+            <button className="relative p-2 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer">
+              <Sparkles className="size-5" />
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-500 border-2 border-[#f8f9fc] rounded-full"></span>
+            </button>
+            
+            {/* Profile Pic */}
+            <img 
+              src={`https://ui-avatars.com/api/?name=Sarah&background=c026d3&color=fff`} 
+              alt="Profile" 
+              className="w-10 h-10 rounded-full shadow-sm cursor-pointer border-2 border-white"
+            />
+          </div>
+        </header>
+
+        {/* Main Scrollable Content */}
+        <div className="flex-1 overflow-y-auto custom-scroll px-8 pb-32">
           {activeView === "dashboard" && (
             <OverviewDashboard 
               patient={selectedPatient} 
@@ -360,35 +431,34 @@ function Index() {
                 <RecordDetail record={selected} onAsk={handleAsk} />
               </div>
             ) : (
-              // Replicating Production Medical History View (Tabs + Table grids)
-              <div className="mx-auto w-full max-w-4xl px-6 py-8 space-y-6 animate-fade-up">
+              <div className="mx-auto w-full max-w-4xl py-6 space-y-6 animate-fade-up">
                 <header className="space-y-1">
-                  <h1 className="font-serif text-3xl text-ink">Medical History</h1>
-                  <p className="text-sm text-muted-foreground">Demographics, clinical records logs, and system audit trail.</p>
+                  <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Medical History</h1>
+                  <p className="text-sm text-slate-400 font-medium">Demographics, clinical records logs, and system audit trail.</p>
                 </header>
 
-                {/* Parent Tabs */}
-                <div className="flex border-b border-border gap-6 text-sm">
+                {/* Parent Tabs - Bento Style */}
+                <div className="flex border-b border-slate-100 gap-6 text-sm">
                   <button
                     onClick={() => setMedHistoryParentTab("details")}
-                    className={`pb-2 border-b-2 font-semibold transition-colors cursor-pointer ${
-                      medHistoryParentTab === "details" ? "border-sage text-sage" : "border-transparent text-muted-foreground hover:text-ink"
+                    className={`pb-2 border-b-2 font-bold transition-colors cursor-pointer ${
+                      medHistoryParentTab === "details" ? "border-brand-500 text-brand-600" : "border-transparent text-slate-400 hover:text-slate-700"
                     }`}
                   >
                     Patient Details
                   </button>
                   <button
                     onClick={() => setMedHistoryParentTab("history")}
-                    className={`pb-2 border-b-2 font-semibold transition-colors cursor-pointer ${
-                      medHistoryParentTab === "history" ? "border-sage text-sage" : "border-transparent text-muted-foreground hover:text-ink"
+                    className={`pb-2 border-b-2 font-bold transition-colors cursor-pointer ${
+                      medHistoryParentTab === "history" ? "border-brand-500 text-brand-600" : "border-transparent text-slate-400 hover:text-slate-700"
                     }`}
                   >
                     Medical History
                   </button>
                   <button
                     onClick={() => setMedHistoryParentTab("audit")}
-                    className={`pb-2 border-b-2 font-semibold transition-colors cursor-pointer ${
-                      medHistoryParentTab === "audit" ? "border-sage text-sage" : "border-transparent text-muted-foreground hover:text-ink"
+                    className={`pb-2 border-b-2 font-bold transition-colors cursor-pointer ${
+                      medHistoryParentTab === "audit" ? "border-brand-500 text-brand-600" : "border-transparent text-slate-400 hover:text-slate-700"
                     }`}
                   >
                     Audit Trail
@@ -397,24 +467,26 @@ function Index() {
 
                 {/* Tab Contents */}
                 {medHistoryParentTab === "details" && (
-                  <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-                    <h3 className="font-serif text-xl font-medium text-ink flex items-center gap-2"><User className="h-5 w-5 text-sage" /> Personal & Contact Information</h3>
+                  <div className="rounded-[32px] border border-slate-100 bg-white p-8 shadow-soft space-y-5">
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                      <User className="h-5 w-5 text-brand-500" /> Personal & Contact Information
+                    </h3>
                     <div className="grid gap-4 sm:grid-cols-2 text-xs">
                       <div className="space-y-1">
-                        <label className="text-muted-foreground font-medium">Full Name</label>
-                        <input type="text" readOnly value={selectedPatient.name} className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-ink font-semibold" />
+                        <label className="text-slate-400 font-semibold uppercase tracking-wider">Full Name</label>
+                        <input type="text" readOnly value={selectedPatient.name} className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-slate-700 font-bold focus:outline-none" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-muted-foreground font-medium">Age</label>
-                        <input type="text" readOnly value={`${selectedPatient.age} years old`} className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-ink font-semibold" />
+                        <label className="text-slate-400 font-semibold uppercase tracking-wider">Age</label>
+                        <input type="text" readOnly value={`${selectedPatient.age} years old`} className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-slate-700 font-bold focus:outline-none" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-muted-foreground font-medium">Pronouns</label>
-                        <input type="text" readOnly value={selectedPatient.pronouns} className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-ink font-semibold" />
+                        <label className="text-slate-400 font-semibold uppercase tracking-wider">Pronouns</label>
+                        <input type="text" readOnly value={selectedPatient.pronouns} className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-slate-700 font-bold focus:outline-none" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-muted-foreground font-medium">Primary Care Doctor</label>
-                        <input type="text" readOnly value={selectedPatient.primaryCare || "Dr. Renata Halloway"} className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-ink font-semibold" />
+                        <label className="text-slate-400 font-semibold uppercase tracking-wider">Primary Care Doctor</label>
+                        <input type="text" readOnly value={selectedPatient.primaryCare || "Dr. Sarah"} className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-slate-700 font-bold focus:outline-none" />
                       </div>
                     </div>
                   </div>
@@ -423,11 +495,11 @@ function Index() {
                 {medHistoryParentTab === "history" && (
                   <div className="space-y-6">
                     {/* Inner Tabs */}
-                    <div className="flex border-b border-border gap-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="flex border-b border-slate-100 gap-4 text-xs font-bold uppercase tracking-wider text-slate-400">
                       <button
                         onClick={() => setMedHistoryCategoryTab("conditions")}
                         className={`pb-2 border-b-2 cursor-pointer ${
-                          medHistoryCategoryTab === "conditions" ? "border-sage text-sage" : "border-transparent hover:text-ink"
+                          medHistoryCategoryTab === "conditions" ? "border-brand-500 text-brand-600" : "border-transparent hover:text-slate-700"
                         }`}
                       >
                         Conditions ({filteredConditions.length})
@@ -435,7 +507,7 @@ function Index() {
                       <button
                         onClick={() => setMedHistoryCategoryTab("medications")}
                         className={`pb-2 border-b-2 cursor-pointer ${
-                          medHistoryCategoryTab === "medications" ? "border-sage text-sage" : "border-transparent hover:text-ink"
+                          medHistoryCategoryTab === "medications" ? "border-brand-500 text-brand-600" : "border-transparent hover:text-slate-700"
                         }`}
                       >
                         Medications ({filteredMedications.length})
@@ -443,7 +515,7 @@ function Index() {
                       <button
                         onClick={() => setMedHistoryCategoryTab("labs")}
                         className={`pb-2 border-b-2 cursor-pointer ${
-                          medHistoryCategoryTab === "labs" ? "border-sage text-sage" : "border-transparent hover:text-ink"
+                          medHistoryCategoryTab === "labs" ? "border-brand-500 text-brand-600" : "border-transparent hover:text-slate-700"
                         }`}
                       >
                         Labs ({filteredLabs.length})
@@ -451,7 +523,7 @@ function Index() {
                       <button
                         onClick={() => setMedHistoryCategoryTab("vitals")}
                         className={`pb-2 border-b-2 cursor-pointer ${
-                          medHistoryCategoryTab === "vitals" ? "border-sage text-sage" : "border-transparent hover:text-ink"
+                          medHistoryCategoryTab === "vitals" ? "border-brand-500 text-brand-600" : "border-transparent hover:text-slate-700"
                         }`}
                       >
                         Vitals ({filteredVitals.length})
@@ -460,48 +532,48 @@ function Index() {
 
                     {/* Lists */}
                     {medHistoryCategoryTab === "conditions" && (
-                      <div className="rounded-2xl border border-border bg-card divide-y divide-border text-xs">
+                      <div className="rounded-[32px] border border-slate-100 bg-white p-4 divide-y divide-slate-100 text-xs shadow-soft">
                         {filteredConditions.map((c) => (
-                          <div key={c.id} onClick={() => setSelectedId(c.id)} className="p-3.5 hover:bg-muted/10 flex justify-between items-center cursor-pointer transition-colors">
-                            <span className="font-semibold text-ink">{c.title}</span>
-                            <span className="text-muted-foreground">{new Date(c.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
+                          <div key={c.id} onClick={() => setSelectedId(c.id)} className="p-3.5 hover:bg-slate-50 rounded-xl flex justify-between items-center cursor-pointer transition-colors">
+                            <span className="font-bold text-slate-700">{c.title}</span>
+                            <span className="text-slate-400 font-semibold">{new Date(c.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
                           </div>
                         ))}
                       </div>
                     )}
 
                     {medHistoryCategoryTab === "medications" && (
-                      <div className="rounded-2xl border border-border bg-card divide-y divide-border text-xs">
+                      <div className="rounded-[32px] border border-slate-100 bg-white p-4 divide-y divide-slate-100 text-xs shadow-soft">
                         {filteredMedications.map((m) => (
-                          <div key={m.id} onClick={() => setSelectedId(m.id)} className="p-3.5 hover:bg-muted/10 flex justify-between items-center cursor-pointer transition-colors">
-                            <span className="font-semibold text-ink">{m.title}</span>
-                            <span className="text-muted-foreground">{new Date(m.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
+                          <div key={m.id} onClick={() => setSelectedId(m.id)} className="p-3.5 hover:bg-slate-50 rounded-xl flex justify-between items-center cursor-pointer transition-colors">
+                            <span className="font-bold text-slate-700">{m.title}</span>
+                            <span className="text-slate-400 font-semibold">{new Date(m.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
                           </div>
                         ))}
                       </div>
                     )}
 
                     {medHistoryCategoryTab === "labs" && (
-                      <div className="rounded-2xl border border-border bg-card divide-y divide-border text-xs">
+                      <div className="rounded-[32px] border border-slate-100 bg-white p-4 divide-y divide-slate-100 text-xs shadow-soft">
                         {filteredLabs.length > 0 ? (
                           filteredLabs.map((l) => (
-                            <div key={l.id} onClick={() => setSelectedId(l.id)} className="p-3.5 hover:bg-muted/10 flex justify-between items-center cursor-pointer transition-colors">
-                              <span className="font-semibold text-ink">{l.title}</span>
-                              <span className="text-muted-foreground">{new Date(l.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
+                            <div key={l.id} onClick={() => setSelectedId(l.id)} className="p-3.5 hover:bg-slate-50 rounded-xl flex justify-between items-center cursor-pointer transition-colors">
+                              <span className="font-bold text-slate-700">{l.title}</span>
+                              <span className="text-slate-400 font-semibold">{new Date(l.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
                             </div>
                           ))
                         ) : (
-                          <div className="p-6 text-center text-muted-foreground">No laboratory records on file.</div>
+                          <div className="p-6 text-center text-slate-400 font-semibold">No laboratory records on file.</div>
                         )}
                       </div>
                     )}
 
                     {medHistoryCategoryTab === "vitals" && (
-                      <div className="rounded-2xl border border-border bg-card divide-y divide-border text-xs">
+                      <div className="rounded-[32px] border border-slate-100 bg-white p-4 divide-y divide-slate-100 text-xs shadow-soft">
                         {filteredVitals.map((v) => (
-                          <div key={v.id} onClick={() => setSelectedId(v.id)} className="p-3.5 hover:bg-muted/10 flex justify-between items-center cursor-pointer transition-colors">
-                            <span className="font-semibold text-ink">{v.title}</span>
-                            <span className="text-muted-foreground font-mono">{v.subtitle || v.fields?.[0]?.value} ({new Date(v.date).toLocaleDateString("en-US", { year: "numeric", month: "short" })})</span>
+                          <div key={v.id} onClick={() => setSelectedId(v.id)} className="p-3.5 hover:bg-slate-50 rounded-xl flex justify-between items-center cursor-pointer transition-colors">
+                            <span className="font-bold text-slate-700">{v.title}</span>
+                            <span className="text-slate-400 font-semibold font-mono">{v.subtitle || v.fields?.[0]?.value} ({new Date(v.date).toLocaleDateString("en-US", { year: "numeric", month: "short" })})</span>
                           </div>
                         ))}
                       </div>
@@ -510,15 +582,17 @@ function Index() {
                 )}
 
                 {medHistoryParentTab === "audit" && (
-                  <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-                    <h3 className="font-serif text-xl font-medium text-ink flex items-center gap-2"><History className="h-5 w-5 text-sage" /> System Access Logs</h3>
-                    <div className="divide-y divide-border text-xs font-mono">
+                  <div className="rounded-[32px] border border-slate-100 bg-white p-8 shadow-soft space-y-4">
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                      <History className="h-5 w-5 text-brand-500" /> System Access Logs
+                    </h3>
+                    <div className="divide-y divide-slate-100 text-xs font-mono">
                       {[
                         { event: "FHIR records connection established", user: "Hekma App Integration", time: "Just now" },
                         { event: "Demographics profiles synchronized from hospital portal", user: "Hekma Auth Helper", time: "5 minutes ago" },
                         { event: "Clinical database updated securely", user: "Neo4j ETL Driver", time: "1 hour ago" }
                       ].map((log, i) => (
-                        <div key={i} className="py-2.5 flex justify-between text-muted-foreground">
+                        <div key={i} className="py-3 flex justify-between text-slate-400">
                           <span>{log.event} [{log.user}]</span>
                           <span>{log.time}</span>
                         </div>
@@ -529,78 +603,39 @@ function Index() {
               </div>
             )
           )}
-        </main>
-        
-        {/* Desktop chat panel */}
-        {chatOpen && (
-          <div className="hidden min-h-0 lg:block border-l border-border animate-fade-in">
-            <ChatPanel 
-              ref={chatRef} 
-              patientId={selectedPatientId} 
-              records={records} 
-              onSourceClick={handleSourceClick} 
-              onClose={() => setChatOpen(false)}
-              pendingQuestion={chatPrefillText}
-              pendingRecord={chatAttachRecord}
-              onClearPendingQuestion={() => setChatPrefillText(null)}
-              onClearPendingRecord={() => setChatAttachRecord(null)}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Mobile/tablet chat drawer */}
-      <div className="lg:hidden">
-        {chatOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-ink/20 backdrop-blur-sm"
-            onClick={() => setChatOpen(false)}
-            aria-hidden
-          />
-        )}
-        <div
-          className={`fixed inset-y-0 right-0 z-50 w-full max-w-md transform bg-background shadow-2xl transition-transform duration-300 ${
-            chatOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-          role="dialog"
-          aria-label="Hekma chat"
-        >
-          <button
-            onClick={() => setChatOpen(false)}
-            className="absolute right-3 top-3 z-10 rounded-full p-2 text-ink/70 hover:bg-ink/5 cursor-pointer animate-fade-in"
-            aria-label="Close chat"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <div className="h-full">
-            <ChatPanel
-              ref={chatRef}
-              patientId={selectedPatientId}
-              records={records}
-              onSourceClick={(id) => {
-                handleSourceClick(id);
-                setChatOpen(false);
-              }}
-              pendingQuestion={chatPrefillText}
-              pendingRecord={chatAttachRecord}
-              onClearPendingQuestion={() => setChatPrefillText(null)}
-              onClearPendingRecord={() => setChatAttachRecord(null)}
-            />
-          </div>
         </div>
-      </div>
+      </main>
 
-      {/* Floating chatbot toggle button for both mobile and desktop when closed */}
-      {!chatOpen && (
-        <button
-          onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full bg-sage px-5 py-3 text-sm font-medium text-white shadow-lg shadow-sage/30 hover:bg-sage/90 transition-all hover:scale-105 active:scale-95 cursor-pointer animate-fade-in"
-          aria-label="Open Hekma chat"
-        >
-          <MessageCircle className="h-5 w-5" />
-          Ask Hekma
-        </button>
-      )}
+      {/* Floating Action Button */}
+      <button 
+        onClick={() => setChatOpen(!chatOpen)} 
+        className="fixed bottom-8 right-8 w-16 h-16 gradient-bg rounded-full shadow-float flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all z-50 focus:outline-none cursor-pointer"
+        aria-label="Toggle Ask Hekma"
+      >
+        <Sparkles className="size-7 text-white fill-white animate-pulse" />
+      </button>
+
+      {/* Floating Chat Window overlay */}
+      <div 
+        id="hekma-chat" 
+        className={`fixed bottom-28 right-8 w-96 max-w-[calc(100vw-2rem)] h-[580px] bg-white rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden z-50 transition-all duration-300 ${
+          chatOpen 
+            ? "opacity-100 scale-100 translate-y-0 pointer-events-auto" 
+            : "opacity-0 scale-90 translate-y-5 pointer-events-none"
+        }`}
+      >
+        <ChatPanel 
+          ref={chatRef} 
+          patientId={selectedPatientId} 
+          records={records} 
+          onSourceClick={handleSourceClick} 
+          onClose={() => setChatOpen(false)}
+          pendingQuestion={chatPrefillText}
+          pendingRecord={chatAttachRecord}
+          onClearPendingQuestion={() => setChatPrefillText(null)}
+          onClearPendingRecord={() => setChatAttachRecord(null)}
+        />
+      </div>
 
       {/* Stitch Connector Modal Dialog Overlay */}
       <StitchModal 
