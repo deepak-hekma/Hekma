@@ -338,9 +338,9 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
         {messages.length === 0 && !pending && (
           <div className="space-y-4 py-6">
             <div className="text-sm leading-relaxed text-ink/85">
-              Hi — I'm <span className="font-serif text-base">Hekma</span>. I can answer questions
-              about your records, explain a result, or summarize a visit. I'll always cite which
-              record I'm reading from.
+              Hi, I'm <span className="font-serif text-base">Hekma</span>. I can help answer questions
+              about your health records, explain test results, and summarize your visits. I'll
+              always show where the information comes from.
             </div>
             <div className="space-y-1.5">
               {chatWelcomeSuggestions.map((s) => (
